@@ -11,9 +11,17 @@ import Foundation
 class CalculatorBrain {
   
   private var accumulator = 0.0
+  private var internalProgram = [AnyObject]()
+  
+  var description = ""
+  
+  var isPartialResult: Bool {
+    return pending == nil
+  }
   
   func setOperand(operand: Double) {
     accumulator = operand
+    internalProgram.append(operand as AnyObject)
   }
   
   private var operations: Dictionary<String, Operation> = [
@@ -41,30 +49,48 @@ class CalculatorBrain {
     case Clear
   }
   func performOperation(symbol: String) {
+    internalProgram.append(symbol as AnyObject)
     if let operation = operations[symbol] {
       switch operation {
       case .Constant(let value):
         accumulator = value
+        if pending != nil {
+          description += " " + formatAccumulator()
+        } else {
+          description = formatAccumulator()
+        }
+        
       case .UnaryOperation(let function):
         // Doesn't allow the square root of negative numbers
         if symbol == "√" && accumulator < 0 {
           return
         }
         accumulator = function(accumulator)
+        if description.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) == "" {
+          description = " " + symbol + "(" + formatAccumulator() + ")"
+        } else {
+          description = " " + symbol + "(" + description + ")"
+        }
       case .BinaryOperation(let function):
         executePendingBinaryOperation()
         pending = PendingBinaryOperationInfo(binaryFunction: function, firstOperand: accumulator)
+        if description.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) == "" {
+          description += formatAccumulator() + " " + symbol
+        } else {
+          description += " " + symbol
+        }
+        
       case .Equals:
         executePendingBinaryOperation()
       case .Clear:
-        pending = nil
-        accumulator = 0.0
+        clear()
       }
     }
   }
   
   private func executePendingBinaryOperation() {
     if pending != nil {
+      description += " " + formatAccumulator()
       accumulator = pending!.binaryFunction(pending!.firstOperand, accumulator)
       pending = nil
     }
@@ -75,6 +101,35 @@ class CalculatorBrain {
   private struct PendingBinaryOperationInfo {
     var binaryFunction: (Double, Double) -> Double
     var firstOperand: Double
+  }
+  
+  typealias PropertyList = AnyObject
+  var program: PropertyList {
+    get {
+      return internalProgram as CalculatorBrain.PropertyList
+    }
+    set {
+      clear()
+      if let arrayofOps = newValue as? [AnyObject] {
+        for op in arrayofOps {
+          if let operand = op as? Double {
+            setOperand(operand: operand)
+          } else if let operation = op as? String {
+            performOperation(symbol: operation)
+          }
+        }
+      }
+    }
+  }
+  
+  private func clear() {
+    accumulator = 0.0
+    pending = nil
+    description = " "
+  }
+  
+  private func formatAccumulator() -> String {
+    return round(accumulator) == accumulator ? String(Int(accumulator)) : String(accumulator)
   }
   
   var result: Double {

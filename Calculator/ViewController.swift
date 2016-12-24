@@ -11,7 +11,7 @@ import UIKit
 class ViewController: UIViewController {
   
   @IBOutlet weak var display: UILabel!
-  
+  @IBOutlet weak var equationDisplay: UILabel!
   private var userIsInTheMiddleOfTyping = false
   
   @IBAction func digitTouched(_ sender: UIButton) {
@@ -19,7 +19,6 @@ class ViewController: UIViewController {
     if (digit == "." && (display.text?.contains("."))!) || (digit == "0" && displayValue == 0) {
       return
     } else if digit == "." || userIsInTheMiddleOfTyping {
-      
       let textCurrentlyInDisplay = display.text
       display.text = textCurrentlyInDisplay! + digit
     } else {
@@ -41,6 +40,20 @@ class ViewController: UIViewController {
     }
   }
   
+  
+  var savedProgram: CalculatorBrain.PropertyList?
+  
+  @IBAction func save() {
+    savedProgram = brain.program
+  }
+  
+  @IBAction func restore() {
+    if savedProgram != nil {
+      brain.program = savedProgram!
+      displayValue = brain.result
+    }
+  }
+  
   private var brain = CalculatorBrain()
   
   @IBAction func operationButtonTouched(_ sender: UIButton) {
@@ -52,6 +65,7 @@ class ViewController: UIViewController {
       brain.performOperation(symbol: mathematicalSymbol)
     }
     displayValue = brain.result
+    equationDisplay.text = brain.description
   }
 }
 
