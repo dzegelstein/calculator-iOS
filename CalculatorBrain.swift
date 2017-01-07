@@ -13,7 +13,9 @@ class CalculatorBrain {
   private var accumulator = 0.0
   private var internalProgram = [AnyObject]()
   
-  var description = ""
+  var userTyped = false
+  
+  var description = " "
   
   var isPartialResult: Bool {
     return pending == nil
@@ -24,10 +26,23 @@ class CalculatorBrain {
     internalProgram.append(operand as AnyObject)
   }
   
+  func setOperand(operand: String) {
+    if let value = variableValues[operand] {
+      accumulator = value
+      internalProgram.append(operand as AnyObject)
+    } else {
+      accumulator = 0.0
+    }
+  }
+  
+  var variableValues: Dictionary<String, Double> = [:]
+  
   private var operations: Dictionary<String, Operation> = [
     "π": Operation.Constant(M_PI),
     "e": Operation.Constant(M_E),
     "±": Operation.UnaryOperation({ -$0 }),
+    "1/x": Operation.UnaryOperation({ 1/$0 }),
+    "%": Operation.UnaryOperation({ $0 / 100 }),
     "√": Operation.UnaryOperation(sqrt),
     "cos": Operation.UnaryOperation(cos),
     "tan": Operation.UnaryOperation(tan),
@@ -38,7 +53,11 @@ class CalculatorBrain {
     "+": Operation.BinaryOperation({ $0 + $1 }),
     "−": Operation.BinaryOperation({ $0 - $1 }),
     "=": Operation.Equals,
-    "c": Operation.Clear
+    "c": Operation.Clear,
+    "→M": Operation.SetVariable,
+    "M": Operation.UseVariable,
+    "→X": Operation.SetVariable,
+    "X": Operation.UseVariable
   ]
   
   private enum Operation {
@@ -47,52 +66,85 @@ class CalculatorBrain {
     case BinaryOperation((Double, Double) -> Double)
     case Equals
     case Clear
+    case SetVariable
+    case UseVariable
   }
+  
   func performOperation(symbol: String) {
     internalProgram.append(symbol as AnyObject)
     if let operation = operations[symbol] {
       switch operation {
+        
       case .Constant(let value):
         accumulator = value
-        if pending != nil {
-          description += " " + formatAccumulator()
+        if !userTyped && pending != nil {
+          executePendingBinaryOperation(" \(symbol)")
         } else {
-          description = formatAccumulator()
+          description += " \(symbol)"
         }
         
       case .UnaryOperation(let function):
+        executePendingBinaryOperation(formatAccumulator())
         // Doesn't allow the square root of negative numbers
         if symbol == "√" && accumulator < 0 {
           return
         }
         accumulator = function(accumulator)
         if description.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) == "" {
-          description = " " + symbol + "(" + formatAccumulator() + ")"
+          description = " \(symbol) (\(formatAccumulator()))"
         } else {
-          description = " " + symbol + "(" + description + ")"
+          description = " \(symbol)(\(description))"
         }
+        userTyped = false
+        
       case .BinaryOperation(let function):
-        executePendingBinaryOperation()
-        pending = PendingBinaryOperationInfo(binaryFunction: function, firstOperand: accumulator)
-        if description.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) == "" {
-          description += formatAccumulator() + " " + symbol
+        
+        if pending == nil && userTyped {
+          description = "\(formatAccumulator()) \(symbol)"
         } else {
-          description += " " + symbol
+          executePendingBinaryOperation(" \(formatAccumulator())")
+          if (description.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) == "") {
+            description = "\(formatAccumulator()) \(symbol)"
+          } else {
+            description += " \(symbol)"
+          }
         }
+        pending = PendingBinaryOperationInfo(binaryFunction: function, firstOperand: accumulator)
         
       case .Equals:
-        executePendingBinaryOperation()
+        if userTyped && pending == nil {
+          description = formatAccumulator()
+        } else if userTyped {
+          executePendingBinaryOperation(" \(formatAccumulator())")
+        } else {
+          executePendingBinaryOperation("")
+        }
+        
       case .Clear:
         clear()
+        
+      case .SetVariable:
+        var variable = symbol
+        variable.characters.removeFirst()
+        variableValues[variable] = accumulator
+        
+      case .UseVariable:
+        setOperand(operand: symbol)
+        if pending != nil {
+          executePendingBinaryOperation(" \(symbol)")
+        } else {
+          description = symbol
+        }
       }
     }
   }
   
-  private func executePendingBinaryOperation() {
+  private func executePendingBinaryOperation(_ newDescription: String) {
     if pending != nil {
-      description += " " + formatAccumulator()
+      description += newDescription
       accumulator = pending!.binaryFunction(pending!.firstOperand, accumulator)
       pending = nil
+      userTyped = false
     }
   }
   
@@ -104,10 +156,12 @@ class CalculatorBrain {
   }
   
   typealias PropertyList = AnyObject
+  
   var program: PropertyList {
     get {
       return internalProgram as CalculatorBrain.PropertyList
     }
+    
     set {
       clear()
       if let arrayofOps = newValue as? [AnyObject] {
@@ -126,6 +180,7 @@ class CalculatorBrain {
     accumulator = 0.0
     pending = nil
     description = " "
+    variableValues = [:]
   }
   
   private func formatAccumulator() -> String {
@@ -136,6 +191,9 @@ class CalculatorBrain {
     get {
       return accumulator
     }
+    
+    set {
+      accumulator = newValue
+    }
   }
-  
 }
