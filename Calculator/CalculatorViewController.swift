@@ -84,11 +84,11 @@ class CalculatorViewController: UIViewController {
   }
   
   private func backspace() {
-    if display.text!.characters.count > 0 {
+    if display.text!.count > 0 {
       display.text!.remove(at: display.text!.index(before: display.text!.endIndex))
     }
     
-    if display.text!.characters.count == 0 {
+    if display.text!.count == 0 {
       display.text = "0"
       userIsInTheMiddleOfTyping = false
     }

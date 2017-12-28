@@ -38,7 +38,7 @@ class CalculatorBrain {
   var variableValues: Dictionary<String, Double> = [:]
   
   private var operations: Dictionary<String, Operation> = [
-    "π": Operation.Constant(M_PI),
+    "π": Operation.Constant(Double.pi),
     "e": Operation.Constant(M_E),
     "±": Operation.UnaryOperation({ -$0 }),
     "1/x": Operation.UnaryOperation({ 1/$0 }),
@@ -124,8 +124,8 @@ class CalculatorBrain {
         clear()
         
       case .SetVariable:
-        var variable = symbol
-        variable.characters.removeFirst()
+        var variable: String = symbol
+        variable.removeFirst()
         variableValues[variable] = accumulator
         
       case .UseVariable:
